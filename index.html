@@ -13,7 +13,7 @@
   /* ── Reset & Base ── */
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; background: #f4f6f4; font-family: -apple-system, 'Segoe UI', sans-serif; color: #1a1a1a; }
- 
+
   /* ── Setup Screen ── */
   #setupScreen {
     display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -38,10 +38,10 @@
   .setup-steps p { font-size: 12px; color: #0F6E56; margin-bottom: 0; font-weight: 500; }
   .setup-steps ol { padding-left: 16px; margin-top: 6px; }
   .setup-steps li { font-size: 12px; color: #0F6E56; line-height: 1.8; }
- 
+
   /* ── App Shell ── */
   #app { display: none; flex-direction: column; min-height: 100vh; max-width: 430px; margin: 0 auto; background: white; }
- 
+
   /* ── Header ── */
   .header { background: #1D9E75; padding: 16px 16px 20px; color: white; }
   .header-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
@@ -50,17 +50,17 @@
   .settings-btn svg { width: 16px; height: 16px; fill: white; }
   .balance-label { font-size: 12px; opacity: 0.7; margin-bottom: 3px; }
   .balance-amount { font-size: 30px; font-weight: 700; letter-spacing: -0.5px; }
- 
+
   /* ── User Tabs ── */
   .user-tabs { display: flex; background: #085041; }
   .user-tab { flex: 1; padding: 9px 4px; text-align: center; font-size: 12px; color: rgba(255,255,255,0.55); border: none; background: transparent; cursor: pointer; font-weight: 500; transition: all 0.2s; }
   .user-tab.active { color: white; background: rgba(255,255,255,0.18); }
- 
+
   /* ── Month Bar ── */
   .month-bar { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; background: #f4f6f4; border-bottom: 1px solid #ebebeb; }
   .month-btn { background: white; border: 1px solid #e0e0e0; border-radius: 8px; width: 30px; height: 30px; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #555; }
   .month-label { font-size: 13px; font-weight: 600; color: #333; }
- 
+
   /* ── Summary Grid ── */
   .summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 12px; background: #f4f6f4; }
   .stat-card { background: white; border-radius: 14px; padding: 12px 13px; }
@@ -71,17 +71,17 @@
   .stat-card.expense .stat-val { color: #E24B4A; }
   .stat-card.saving .stat-val { color: #185FA5; }
   .stat-card.remaining .stat-val { color: #BA7517; }
- 
+
   /* ── Nav ── */
   .nav { display: flex; background: white; border-bottom: 1px solid #ebebeb; padding: 0 8px; }
   .nav-btn { flex: 1; padding: 11px 4px; text-align: center; font-size: 12px; color: #999; border: none; background: transparent; cursor: pointer; border-bottom: 2.5px solid transparent; font-weight: 500; transition: all 0.2s; }
   .nav-btn.active { color: #1D9E75; border-bottom-color: #1D9E75; }
- 
+
   /* ── Panels ── */
   .panel { display: none; padding: 16px; background: white; flex: 1; }
   .panel.active { display: block; }
   .sec-title { font-size: 11px; font-weight: 700; color: #aaa; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.6px; }
- 
+
   /* ── Form ── */
   .form-row { margin-bottom: 12px; }
   .form-row label { font-size: 12px; font-weight: 600; color: #555; display: block; margin-bottom: 5px; }
@@ -108,7 +108,7 @@
   }
   .save-btn:active { opacity: 0.85; }
   .save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
- 
+
   /* ── Transaction List ── */
   .filter-row { display: flex; gap: 7px; margin-bottom: 14px; flex-wrap: wrap; }
   .filter-chip {
@@ -140,7 +140,7 @@
   .del-btn:active svg { fill: #E24B4A; }
   .empty-state { text-align: center; padding: 40px 0; color: #bbb; font-size: 13px; }
   .empty-state svg { width: 40px; height: 40px; fill: #ddd; display: block; margin: 0 auto 10px; }
- 
+
   /* ── Saving Panel ── */
   .saving-card { background: #E6F1FB; border-radius: 14px; padding: 14px; margin-bottom: 16px; }
   .saving-card-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
@@ -149,7 +149,7 @@
   .progress-bar { height: 7px; background: rgba(24,95,165,0.15); border-radius: 4px; overflow: hidden; }
   .progress-fill { height: 100%; background: #185FA5; border-radius: 4px; transition: width 0.5s ease; }
   .progress-label { font-size: 11px; color: #185FA5; margin-top: 6px; font-weight: 500; }
- 
+
   /* ── Sync Status ── */
   .sync-bar { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 6px 16px; font-size: 11px; font-weight: 500; transition: all 0.3s; }
   .sync-bar.syncing { background: #fff9e6; color: #BA7517; }
@@ -160,18 +160,18 @@
   .sync-bar.synced .sync-dot { background: #1D9E75; }
   .sync-bar.error .sync-dot { background: #E24B4A; }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
- 
+
   /* ── Loading overlay ── */
   .loading-overlay { display: none; position: fixed; inset: 0; background: rgba(255,255,255,0.85); z-index: 100; align-items: center; justify-content: center; flex-direction: column; gap: 10px; }
   .loading-overlay.show { display: flex; }
   .spinner { width: 36px; height: 36px; border: 3px solid #e0e0e0; border-top-color: #1D9E75; border-radius: 50%; animation: spin 0.7s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
   .loading-text { font-size: 13px; color: #888; font-weight: 500; }
- 
+
   /* ── Toast ── */
   .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: #1a1a1a; color: white; padding: 10px 18px; border-radius: 20px; font-size: 13px; font-weight: 500; transition: transform 0.3s ease; z-index: 200; white-space: nowrap; }
   .toast.show { transform: translateX(-50%) translateY(0); }
- 
+
   /* ── PIN Screen ── */
   #pinScreen {
     display: none; flex-direction: column; align-items: center; justify-content: center;
@@ -202,8 +202,8 @@
 </style>
 </head>
 <body>
- 
- 
+
+
 <!-- PIN Screen -->
 <div id="pinScreen">
   <div class="pin-card">
@@ -238,7 +238,7 @@
     <div class="pin-hint" id="pinHint"></div>
   </div>
 </div>
- 
+
 <!-- Setup Screen -->
 <div id="setupScreen">
   <div class="setup-card">
@@ -247,11 +247,11 @@
     </div>
     <h1>Keuangan Keluarga</h1>
     <p>Hubungkan ke Google Sheets kamu agar data sinkron antara dua HP.</p>
- 
+
     <div class="setup-steps">
       <p>Aplikasi ini terhubung langsung ke Google Sheets milik kamu. Data kamu dan pasangan akan tersinkron otomatis.</p>
     </div>
- 
+
     <div class="setup-field">
       <label>Nama kamu</label>
       <input type="text" id="userName" placeholder="contoh: Budi, Siti, Ayah, Bunda..." maxlength="20" />
@@ -260,7 +260,7 @@
     <button class="setup-btn" onclick="saveSetup()">Mulai Pakai Aplikasi</button>
   </div>
 </div>
- 
+
 <!-- Main App -->
 <div id="app">
   <div class="header">
@@ -273,24 +273,24 @@
     <div class="balance-label" id="headerSub">Sisa uang bulan ini</div>
     <div class="balance-amount" id="balanceDisplay">Rp 0</div>
   </div>
- 
+
   <div class="user-tabs">
     <button class="user-tab active" onclick="switchUser('semua')" id="tab-semua">Berdua</button>
     <button class="user-tab" onclick="switchUser('saya')" id="tab-saya" id="tab-self">Saya</button>
     <button class="user-tab" onclick="switchUser('istri')" id="tab-other">Istri/Suami</button>
   </div>
- 
+
   <div class="month-bar">
     <button class="month-btn" onclick="changeMonth(-1)">‹</button>
     <span class="month-label" id="monthLabel">—</span>
     <button class="month-btn" onclick="changeMonth(1)">›</button>
   </div>
- 
+
   <div id="syncBar" class="sync-bar synced">
     <div class="sync-dot"></div>
     <span id="syncText">Data tersinkron</span>
   </div>
- 
+
   <div class="summary-grid">
     <div class="stat-card income">
       <div class="stat-lbl">
@@ -321,13 +321,13 @@
       <div class="stat-val" id="totalRemaining">Rp 0</div>
     </div>
   </div>
- 
+
   <nav class="nav">
     <button class="nav-btn active" onclick="showPanel('add')" id="nav-add">+ Tambah</button>
     <button class="nav-btn" onclick="showPanel('list')" id="nav-list">Riwayat</button>
     <button class="nav-btn" onclick="showPanel('saving')" id="nav-saving">Tabungan</button>
   </nav>
- 
+
   <!-- Panel: Tambah -->
   <div class="panel active" id="panel-add">
     <div class="sec-title">catat transaksi baru</div>
@@ -345,7 +345,13 @@
     </div>
     <div class="form-row">
       <label>Jumlah (Rp)</label>
-      <input type="number" id="txnAmount" placeholder="0" min="0" inputmode="numeric" />
+      <div style="position:relative;">
+        <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:14px;color:#888;pointer-events:none;">Rp</span>
+        <input type="text" id="txnAmount" placeholder="0" inputmode="numeric"
+          style="padding-left:32px;"
+          oninput="formatRupiahInput(this)"
+          onkeydown="handleAmountKey(event)" />
+      </div>
     </div>
     <div class="form-row">
       <label>Kategori</label>
@@ -353,7 +359,7 @@
     </div>
     <button class="save-btn" id="saveBtn" onclick="addTransaction()">Simpan Transaksi</button>
   </div>
- 
+
   <!-- Panel: Riwayat -->
   <div class="panel" id="panel-list">
     <div class="filter-row">
@@ -364,7 +370,7 @@
     </div>
     <div id="txnList"><div class="empty-state"><svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>Belum ada transaksi</div></div>
   </div>
- 
+
   <!-- Panel: Tabungan -->
   <div class="panel" id="panel-saving">
     <div class="sec-title">total tabungan (semua waktu)</div>
@@ -380,16 +386,16 @@
     <div id="savingList"><div class="empty-state"><svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg>Belum ada tabungan bulan ini</div></div>
   </div>
 </div>
- 
+
 <!-- Loading Overlay -->
 <div class="loading-overlay" id="loadingOverlay">
   <div class="spinner"></div>
   <div class="loading-text" id="loadingText">Memuat data...</div>
 </div>
- 
+
 <!-- Toast -->
 <div class="toast" id="toast"></div>
- 
+
 <script>
 const MONTHS_ID = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 const CATS = {
@@ -397,7 +403,7 @@ const CATS = {
   expense: ['Makanan & Minuman','Belanja','Transportasi','Kesehatan','Tagihan','Hiburan','Pendidikan','Rumah Tangga','Lainnya'],
   saving:  ['Dana Darurat','Investasi','Liburan','Pendidikan Anak','Lainnya']
 };
- 
+
 let transactions = [];
 let currentType = 'income';
 let currentFilter = 'semua';
@@ -406,7 +412,7 @@ let monthOffset = 0;
 let scriptUrl = '';
 let myName = '';
 let syncTimeout = null;
- 
+
 // ── Setup ──────────────────────────────────────────────────
 function saveSetup() {
   const url = document.getElementById('scriptUrl').value.trim();
@@ -416,7 +422,7 @@ function saveSetup() {
   localStorage.setItem('kk_my_name', name);
   startApp(url, name);
 }
- 
+
 function resetSetup() {
   if (!confirm('Reset pengaturan? Kamu perlu memasukkan URL Apps Script lagi.')) return;
   localStorage.removeItem('kk_script_url');
@@ -424,7 +430,7 @@ function resetSetup() {
   document.getElementById('setupScreen').style.display = 'flex';
   document.getElementById('app').style.display = 'none';
 }
- 
+
 function startApp(url, name) {
   scriptUrl = url;
   myName = name;
@@ -435,27 +441,46 @@ function startApp(url, name) {
   updateMonthLabel();
   loadTransactions();
 }
- 
+
+// ── Rupiah Input Formatter ─────────────────────────────────
+function formatRupiahInput(input) {
+  // Strip semua non-digit
+  let raw = input.value.replace(/[^0-9]/g, '');
+  if (!raw) { input.value = ''; return; }
+  // Format dengan titik sebagai pemisah ribuan
+  input.value = parseInt(raw, 10).toLocaleString('id-ID');
+}
+
+function handleAmountKey(e) {
+  // Allow: backspace, delete, tab, arrows, home, end
+  const allowed = [8, 9, 13, 35, 36, 37, 38, 39, 40, 46];
+  if (allowed.includes(e.keyCode)) return;
+  // Allow: Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X
+  if ((e.ctrlKey || e.metaKey) && [65, 67, 86, 88].includes(e.keyCode)) return;
+  // Block non-numeric
+  if (e.key < '0' || e.key > '9') e.preventDefault();
+}
+
 // ── JSONP Helper (redirect-safe) ──────────────────────────
 function jsonp(url) {
   return new Promise((resolve, reject) => {
     const cbName = 'jsonp_cb_' + Math.random().toString(36).slice(2);
     let done = false;
     const script = document.createElement('script');
- 
+
     const timer = setTimeout(() => {
       if (done) return;
       done = true;
       cleanup();
       reject(new Error('Timeout'));
     }, 15000);
- 
+
     function cleanup() {
       clearTimeout(timer);
       try { delete window[cbName]; } catch(e) { window[cbName] = undefined; }
       if (script.parentNode) script.parentNode.removeChild(script);
     }
- 
+
     // Register callback BEFORE appending script
     window[cbName] = function(data) {
       if (done) return;
@@ -463,14 +488,14 @@ function jsonp(url) {
       cleanup();
       resolve(data);
     };
- 
+
     script.onerror = function() {
       if (done) return;
       done = true;
       cleanup();
       reject(new Error('Network error'));
     };
- 
+
     // Add cache buster to avoid stale responses
     const sep = url.includes('?') ? '&' : '?';
     script.src = url + sep + 'callback=' + cbName + '&_t=' + Date.now();
@@ -478,7 +503,7 @@ function jsonp(url) {
     document.head.appendChild(script);
   });
 }
- 
+
 // ── API ────────────────────────────────────────────────────
 async function loadTransactions() {
   setSyncStatus('syncing', 'Memuat data...');
@@ -496,25 +521,25 @@ async function loadTransactions() {
     hideLoading();
   }
 }
- 
+
 async function addTransaction() {
   const name = document.getElementById('txnName').value.trim();
-  const amount = parseFloat(document.getElementById('txnAmount').value);
+  const amount = parseFloat(document.getElementById('txnAmount').value.replace(/[^0-9]/g, ''));
   const category = document.getElementById('txnCategory').value;
   if (!name || !amount || amount <= 0) { showToast('Isi keterangan dan jumlah'); return; }
- 
+
   const txn = {
     id: Date.now().toString(),
     name, amount, type: currentType, category,
     user: myName,
     date: new Date().toISOString()
   };
- 
+
   const btn = document.getElementById('saveBtn');
   btn.disabled = true;
   btn.textContent = 'Menyimpan...';
   setSyncStatus('syncing', 'Menyimpan...');
- 
+
   try {
     const encoded = encodeURIComponent(JSON.stringify(txn));
     const data = await jsonp(`${scriptUrl}?action=add&data=${encoded}`);
@@ -522,6 +547,7 @@ async function addTransaction() {
     transactions.push(txn);
     document.getElementById('txnName').value = '';
     document.getElementById('txnAmount').value = '';
+    document.getElementById('txnAmount').placeholder = '0';
     setSyncStatus('synced', 'Tersimpan');
     showToast('Transaksi berhasil disimpan ✓');
     updateUI();
@@ -534,7 +560,7 @@ async function addTransaction() {
     btn.textContent = 'Simpan Transaksi';
   }
 }
- 
+
 async function deleteTransaction(id) {
   if (!confirm('Hapus transaksi ini?')) return;
   setSyncStatus('syncing', 'Menghapus...');
@@ -550,7 +576,7 @@ async function deleteTransaction(id) {
     showToast('Gagal menghapus. Coba lagi.');
   }
 }
- 
+
 // ── UI Helpers ──────────────────────────────────────────────
 function setType(t) {
   currentType = t;
@@ -559,7 +585,7 @@ function setType(t) {
   });
   document.getElementById('txnCategory').innerHTML = CATS[t].map(c => `<option>${c}</option>`).join('');
 }
- 
+
 function switchUser(u) {
   currentUser = u;
   ['semua','saya','other'].forEach(x => {
@@ -568,21 +594,21 @@ function switchUser(u) {
   });
   updateUI();
 }
- 
+
 function changeMonth(dir) { monthOffset += dir; updateMonthLabel(); updateUI(); }
- 
+
 function updateMonthLabel() {
   const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() + monthOffset);
   document.getElementById('monthLabel').textContent = MONTHS_ID[d.getMonth()] + ' ' + d.getFullYear();
 }
- 
+
 function showPanel(p) {
   ['add','list','saving'].forEach(x => {
     document.getElementById('panel-' + x).className = 'panel' + (x === p ? ' active' : '');
     document.getElementById('nav-' + x).className = 'nav-btn' + (x === p ? ' active' : '');
   });
 }
- 
+
 function setFilter(f) {
   currentFilter = f;
   ['semua','income','expense','saving'].forEach(x => {
@@ -590,7 +616,7 @@ function setFilter(f) {
   });
   renderList();
 }
- 
+
 function getMonthTxns() {
   const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() + monthOffset);
   const m = d.getMonth(), y = d.getFullYear();
@@ -600,7 +626,7 @@ function getMonthTxns() {
     return userOk && td.getMonth() === m && td.getFullYear() === y;
   });
 }
- 
+
 function getAllUserTxns() {
   return transactions.filter(t => {
     if (currentUser === 'semua') return true;
@@ -608,14 +634,14 @@ function getAllUserTxns() {
     return t.user !== myName;
   });
 }
- 
+
 function fmt(n) { return 'Rp ' + Math.round(n).toLocaleString('id-ID'); }
- 
+
 const SVG_INCOME  = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 12l-1.41-1.41L13 16.17V4h-2v12.17l-5.58-5.59L4 12l8 8 8-8z"/></svg>`;
 const SVG_EXPENSE = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 12l1.41 1.41L11 7.83V20h2V7.83l5.58 5.59L20 12l-8-8-8 8z"/></svg>`;
 const SVG_SAVING  = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14l-5-5 1.41-1.41L12 14.17l7.59-7.59L21 8l-9 9z"/></svg>`;
 const ICONS = { income: SVG_INCOME, expense: SVG_EXPENSE, saving: SVG_SAVING };
- 
+
 function renderTxnItem(t) {
   const sign = t.type === 'expense' ? '-' : '+';
   const dateStr = new Date(t.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
@@ -633,14 +659,14 @@ function renderTxnItem(t) {
     </div>
   </div>`;
 }
- 
+
 function renderList() {
   const txns = getMonthTxns().filter(t => currentFilter === 'semua' || t.type === currentFilter);
   document.getElementById('txnList').innerHTML = txns.length
     ? txns.slice().reverse().map(renderTxnItem).join('')
     : `<div class="empty-state"><svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>Belum ada transaksi bulan ini</div>`;
 }
- 
+
 function renderSaving() {
   const allTxns = getAllUserTxns();
   const allSavings = allTxns.filter(t => t.type === 'saving');
@@ -656,7 +682,7 @@ function renderSaving() {
     ? monthSav.slice().reverse().map(renderTxnItem).join('')
     : `<div class="empty-state"><svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg>Belum ada tabungan bulan ini</div>`;
 }
- 
+
 function updateUI() {
   const txns = getMonthTxns();
   const income    = txns.filter(t => t.type === 'income').reduce((s,t) => s + parseFloat(t.amount), 0);
@@ -671,19 +697,19 @@ function updateUI() {
   renderList();
   renderSaving();
 }
- 
+
 function setSyncStatus(state, text) {
   const bar = document.getElementById('syncBar');
   bar.className = 'sync-bar ' + state;
   document.getElementById('syncText').textContent = text;
 }
- 
+
 function showLoading(text) {
   document.getElementById('loadingText').textContent = text || 'Memuat...';
   document.getElementById('loadingOverlay').classList.add('show');
 }
 function hideLoading() { document.getElementById('loadingOverlay').classList.remove('show'); }
- 
+
 let toastTimer;
 function showToast(msg) {
   const t = document.getElementById('toast');
@@ -692,8 +718,8 @@ function showToast(msg) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
 }
- 
- 
+
+
 // ── PIN (SHA-256 secured) ──────────────────────────────────
 // PIN asli tidak tersimpan di kode — hanya hash SHA-256
 const _H = '4c542e8ee4ab6001118e42f1315b7513938332babceaa67b5f73a3531e601333';
@@ -701,12 +727,12 @@ const _S = 'KK_FAMILY_2026_SECURE';
 let pinInput = '';
 let failCount = 0;
 let lockUntil = 0;
- 
+
 async function _hash(str) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
   return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
 }
- 
+
 function showPinScreen() {
   document.getElementById('pinScreen').style.display = 'flex';
   document.getElementById('setupScreen').style.display = 'none';
@@ -718,7 +744,7 @@ function showPinScreen() {
   document.getElementById('pinError').textContent = '';
   checkLockout();
 }
- 
+
 function checkLockout() {
   const now = Date.now();
   if (lockUntil > now) {
@@ -734,7 +760,7 @@ function checkLockout() {
     }
   }
 }
- 
+
 function pinPress(num) {
   if (!num || lockUntil > Date.now()) return;
   if (pinInput.length >= 6) return;
@@ -744,7 +770,7 @@ function pinPress(num) {
     setTimeout(() => checkPin(), 150);
   }
 }
- 
+
 function pinDel() {
   if (lockUntil > Date.now()) return;
   pinInput = pinInput.slice(0, -1);
@@ -755,7 +781,7 @@ function pinDel() {
     if (d) d.classList.remove('error');
   }
 }
- 
+
 function updatePinDots() {
   for (let i = 0; i < 6; i++) {
     const dot = document.getElementById('dot' + i);
@@ -764,7 +790,7 @@ function updatePinDots() {
     dot.classList.toggle('filled', i < pinInput.length);
   }
 }
- 
+
 async function checkPin() {
   const hashed = await _hash(_S + pinInput);
   if (hashed === _H) {
@@ -794,10 +820,10 @@ async function checkPin() {
     setTimeout(() => { updatePinDots(); }, 600);
   }
 }
- 
+
 // ── Auto-refresh every 30 seconds ──────────────────────────
 setInterval(() => { if (scriptUrl) loadTransactions(); }, 30000);
- 
+
 // ── Boot ────────────────────────────────────────────────────
 (function init() {
   // Always show PIN screen first
