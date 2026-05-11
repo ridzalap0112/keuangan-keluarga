@@ -497,6 +497,7 @@ let monthOffset = 0;
 let scriptUrl = '';
 let myName = '';
 let syncTimeout = null;
+let lastSavedTxn = null; // for rollback
 
 // ── Setup ──────────────────────────────────────────────────
 function saveSetup() {
@@ -643,12 +644,13 @@ async function addTransaction() {
     const data = await jsonp(`${scriptUrl}?action=add&data=${encoded}`);
     if (data.error) throw new Error(data.error);
     transactions.push(txn);
+    lastSavedTxn = txn;
     document.getElementById('txnName').value = '';
     document.getElementById('txnAmount').value = '';
     document.getElementById('txnMemo').value = '';
     removePhoto();
     setSyncStatus('synced', 'Tersimpan');
-    showToast('Transaksi berhasil disimpan ✓');
+    showRollbackToast(txn);
     updateUI();
     showPanel('list');
   } catch(e) {
@@ -814,12 +816,46 @@ function showLoading(text) {
 function hideLoading() { document.getElementById('loadingOverlay').classList.remove('show'); }
 
 let toastTimer;
+let rollbackTimer;
+
 function showToast(msg) {
   const t = document.getElementById('toast');
-  t.textContent = msg;
+  t.innerHTML = msg;
   t.classList.add('show');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+function showRollbackToast(txn) {
+  const t = document.getElementById('toast');
+  t.innerHTML = `Tersimpan ✓ &nbsp;<button onclick="rollbackTransaction()" style="background:rgba(255,255,255,0.25);border:none;color:white;padding:3px 10px;border-radius:10px;font-size:12px;cursor:pointer;font-weight:600">Batalkan</button>`;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  clearTimeout(rollbackTimer);
+  rollbackTimer = setTimeout(() => {
+    t.classList.remove('show');
+    lastSavedTxn = null;
+  }, 6000);
+}
+
+async function rollbackTransaction() {
+  if (!lastSavedTxn) return;
+  const txn = lastSavedTxn;
+  lastSavedTxn = null;
+  clearTimeout(rollbackTimer);
+  document.getElementById('toast').classList.remove('show');
+  setSyncStatus('syncing', 'Membatalkan...');
+  try {
+    const data = await jsonp(`${scriptUrl}?action=delete&id=${txn.id}`);
+    if (data.error) throw new Error(data.error);
+    transactions = transactions.filter(t => String(t.id) !== String(txn.id));
+    setSyncStatus('synced', 'Transaksi dibatalkan');
+    showToast('✓ Transaksi berhasil dibatalkan');
+    updateUI();
+  } catch(e) {
+    setSyncStatus('error', 'Gagal membatalkan');
+    showToast('Gagal membatalkan transaksi');
+  }
 }
 
 
@@ -898,6 +934,8 @@ async function checkPin() {
   const hashed = await _hash(_S + pinInput);
   if (hashed === _H) {
     failCount = 0;
+    // Save session — valid 24 jam
+    sessionStorage.setItem('kk_session', Date.now().toString());
     document.getElementById('pinScreen').style.display = 'none';
     const url  = localStorage.getItem('kk_script_url');
     const name = localStorage.getItem('kk_my_name');
@@ -1057,9 +1095,25 @@ function renderChart() {
 // ── Auto-refresh every 30 seconds ──────────────────────────
 setInterval(() => { if (scriptUrl) loadTransactions(); }, 30000);
 
+// ── Session Check ──────────────────────────────────────────
+function isSessionValid() {
+  const ts = sessionStorage.getItem('kk_session');
+  if (!ts) return false;
+  const SESSION_DURATION = 24 * 60 * 60 * 1000; // 24 jam
+  return (Date.now() - parseInt(ts)) < SESSION_DURATION;
+}
+
 // ── Boot ────────────────────────────────────────────────────
 (function init() {
-  // Always show PIN screen first
+  if (isSessionValid()) {
+    // Session masih valid — langsung masuk tanpa PIN
+    const url  = localStorage.getItem('kk_script_url');
+    const name = localStorage.getItem('kk_my_name');
+    if (url && name) {
+      startApp(url, name);
+      return;
+    }
+  }
   showPinScreen();
 })();
 </script>
