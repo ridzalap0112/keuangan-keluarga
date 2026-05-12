@@ -7,8 +7,12 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="Keuangan Keluarga" />
 <meta name="theme-color" content="#1D9E75" />
+<link rel="apple-touch-icon" href="icon-192.png" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Keuangan Keluarga" />
 <title>Keuangan Keluarga</title>
-<link rel="manifest" href="#" />
+<link rel="manifest" href="manifest.json" />
 <style>
   /* ── Reset & Base ── */
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -323,6 +327,16 @@
   .compare-table tr:last-child td { border-bottom: none; font-weight: 700; background: #fafafa; }
   .diff-up { color: #E24B4A; }
   .diff-down { color: #1D9E75; }
+
+  /* ── PWA Install Banner ── */
+  .install-banner { display: none; position: fixed; bottom: 0; left: 0; right: 0; background: #1a1a1a; color: white; padding: 14px 16px; z-index: 500; align-items: center; gap: 12px; max-width: 430px; margin: 0 auto; border-radius: 16px 16px 0 0; box-shadow: 0 -4px 20px rgba(0,0,0,0.3); }
+  .install-banner.show { display: flex; }
+  .install-banner img { width: 40px; height: 40px; border-radius: 10px; }
+  .install-banner .ib-text { flex: 1; }
+  .install-banner .ib-text strong { font-size: 13px; display: block; }
+  .install-banner .ib-text span { font-size: 11px; opacity: 0.6; }
+  .install-banner .ib-btn { background: #1D9E75; border: none; color: white; padding: 8px 16px; border-radius: 20px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+  .install-banner .ib-close { background: none; border: none; color: rgba(255,255,255,0.5); font-size: 18px; cursor: pointer; padding: 0 4px; }
 </style>
 </head>
 <body>
@@ -1269,6 +1283,18 @@ function exportPDF() {
 <h2>Riwayat Transaksi</h2>
 <table><thead><tr><th>Tanggal</th><th>Keterangan</th><th>Kategori</th><th>Oleh</th><th style="text-align:right">Jumlah</th></tr></thead><tbody>${txnRows||'<tr><td colspan=5 style=text-align:center;color:#bbb>Tidak ada transaksi</td></tr>'}</tbody></table>
 <div class="footer">Keuangan Keluarga &copy; ${new Date().getFullYear()} &mdash; Dibuat otomatis dari aplikasi</div>
+
+<!-- PWA Install Banner -->
+<div class="install-banner" id="installBanner">
+  <img src="icon-192.png" alt="Logo" />
+  <div class="ib-text">
+    <strong>Install Keuangan Keluarga</strong>
+    <span>Tambahkan ke layar utama HP kamu</span>
+  </div>
+  <button class="ib-btn" onclick="installPWA()">Install</button>
+  <button class="ib-close" onclick="dismissInstall()">✕</button>
+</div>
+
 </body></html>`;
 
   const blob = new Blob([html], { type: 'text/html' });
@@ -1584,21 +1610,93 @@ function isSessionValid() {
   return (Date.now() - parseInt(ts)) < SESSION_DURATION;
 }
 
+
+// ── PWA Install Prompt ──────────────────────────────────────
+let deferredInstallPrompt = null;
+
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  // Show install banner after 3 seconds
+  setTimeout(() => {
+    if (!localStorage.getItem('kk_install_dismissed')) {
+      document.getElementById('installBanner').classList.add('show');
+    }
+  }, 3000);
+});
+
+function installPWA() {
+  if (!deferredInstallPrompt) return;
+  deferredInstallPrompt.prompt();
+  deferredInstallPrompt.userChoice.then(result => {
+    if (result.outcome === 'accepted') {
+      showToast('✓ Aplikasi berhasil diinstall!');
+    }
+    deferredInstallPrompt = null;
+    document.getElementById('installBanner').classList.remove('show');
+  });
+}
+
+function dismissInstall() {
+  document.getElementById('installBanner').classList.remove('show');
+  localStorage.setItem('kk_install_dismissed', '1');
+}
+
+window.addEventListener('appinstalled', () => {
+  document.getElementById('installBanner').classList.remove('show');
+  showToast('✓ Aplikasi sudah terinstall!');
+});
+
+// ── Service Worker Registration ────────────────────────────
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js')
+      .then(reg => console.log('SW registered:', reg.scope))
+      .catch(err => console.log('SW failed:', err));
+    // Listen for sync messages from SW
+    navigator.serviceWorker.addEventListener('message', e => {
+      if (e.data && e.data.type === 'SYNC_REQUIRED' && scriptUrl) {
+        loadTransactions();
+      }
+    });
+  });
+}
+
 // ── Boot ────────────────────────────────────────────────────
 (function init() {
-  // Show splash 2.5 seconds then proceed
+  // Handle shortcut URL params
+  const params = new URLSearchParams(window.location.search);
+  const targetPanel = params.get('panel');
+
   setTimeout(() => {
     hideSplash();
     setTimeout(() => {
       if (isSessionValid()) {
         const url  = localStorage.getItem('kk_script_url');
         const name = localStorage.getItem('kk_my_name');
-        if (url && name) { startApp(url, name); return; }
+        if (url && name) {
+          startApp(url, name);
+          // If opened via shortcut, go to that panel
+          if (targetPanel) setTimeout(() => showPanel(targetPanel), 1000);
+          return;
+        }
       }
       showPinScreen();
     }, 400);
   }, 2500);
 })();
 </script>
+
+<!-- PWA Install Banner -->
+<div class="install-banner" id="installBanner">
+  <img src="icon-192.png" alt="Logo" />
+  <div class="ib-text">
+    <strong>Install Keuangan Keluarga</strong>
+    <span>Tambahkan ke layar utama HP kamu</span>
+  </div>
+  <button class="ib-btn" onclick="installPWA()">Install</button>
+  <button class="ib-close" onclick="dismissInstall()">✕</button>
+</div>
+
 </body>
 </html>
