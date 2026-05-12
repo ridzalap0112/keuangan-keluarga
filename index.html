@@ -236,6 +236,45 @@
   /* ── Nav 4 tabs ── */
   .nav { display: flex; background: white; border-bottom: 1px solid #ebebeb; padding: 0 4px; }
   .nav-btn { flex: 1; padding: 10px 2px; text-align: center; font-size: 11px; color: #999; border: none; background: transparent; cursor: pointer; border-bottom: 2.5px solid transparent; font-weight: 500; transition: all 0.2s; }
+
+  /* ── Widget Ringkasan ── */
+  .widget-bar { background: white; border-bottom: 1px solid #f0f0f0; overflow: hidden; max-height: 0; transition: max-height 0.35s ease; }
+  .widget-bar.open { max-height: 300px; }
+  .widget-inner { padding: 12px; }
+  .widget-toggle { width: 100%; background: #f4f6f4; border: none; border-bottom: 1px solid #ebebeb; padding: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; font-size: 11px; color: #888; font-weight: 500; }
+  .widget-toggle svg { width: 13px; height: 13px; fill: #aaa; transition: transform 0.3s; }
+  .widget-toggle.open svg { transform: rotate(180deg); }
+  .widget-row { display: flex; gap: 8px; margin-bottom: 8px; }
+  .widget-item { flex: 1; background: #f8f8f8; border-radius: 10px; padding: 10px 8px; text-align: center; }
+  .widget-item .wi-lbl { font-size: 10px; color: #aaa; font-weight: 600; text-transform: uppercase; }
+  .widget-item .wi-val { font-size: 13px; font-weight: 700; margin-top: 3px; }
+  .widget-item.income .wi-val { color: #1D9E75; }
+  .widget-item.expense .wi-val { color: #E24B4A; }
+  .widget-item.saving .wi-val { color: #185FA5; }
+  .widget-item.remaining .wi-val { color: #BA7517; }
+  .widget-txns { margin-top: 8px; }
+  .widget-txn { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #f4f4f4; font-size: 12px; }
+  .widget-txn:last-child { border-bottom: none; }
+  .widget-txn .wt-name { color: #333; font-weight: 500; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .widget-txn .wt-amt { font-weight: 600; flex-shrink: 0; margin-left: 8px; }
+  .widget-txn .wt-amt.income { color: #1D9E75; }
+  .widget-txn .wt-amt.expense { color: #E24B4A; }
+  .widget-txn .wt-amt.saving { color: #185FA5; }
+
+  /* ── Backup Panel ── */
+  .backup-card { background: #f8f8f8; border-radius: 14px; padding: 16px; margin-bottom: 12px; border: 1px solid #ebebeb; }
+  .backup-card h3 { font-size: 13px; font-weight: 700; color: #333; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+  .backup-card h3 svg { width: 16px; height: 16px; fill: #1D9E75; }
+  .backup-card p { font-size: 12px; color: #888; line-height: 1.6; margin-bottom: 12px; }
+  .backup-btn { width: 100%; padding: 11px; border: none; border-radius: 11px; font-size: 13px; font-weight: 600; cursor: pointer; margin-bottom: 8px; transition: opacity 0.15s; }
+  .backup-btn:active { opacity: 0.8; }
+  .backup-btn.export { background: #1D9E75; color: white; }
+  .backup-btn.import { background: white; color: #1D9E75; border: 1.5px solid #1D9E75; }
+  .backup-btn.danger { background: #FCEBEB; color: #E24B4A; }
+  .backup-stats { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-bottom: 12px; }
+  .backup-stat { background: white; border-radius: 10px; padding: 10px; text-align: center; border: 1px solid #ebebeb; }
+  .backup-stat .bs-val { font-size: 18px; font-weight: 700; color: #1D9E75; }
+  .backup-stat .bs-lbl { font-size: 10px; color: #aaa; margin-top: 2px; font-weight: 500; }
 </style>
 </head>
 <body>
@@ -311,6 +350,22 @@
     <div class="balance-amount" id="balanceDisplay">Rp 0</div>
   </div>
 
+  <button class="widget-toggle" id="widgetToggle" onclick="toggleWidget()">
+    <svg viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>
+    Ringkasan Cepat
+  </button>
+  <div class="widget-bar" id="widgetBar">
+    <div class="widget-inner">
+      <div class="widget-row">
+        <div class="widget-item income"><div class="wi-lbl">Pemasukan</div><div class="wi-val" id="wIncome">Rp 0</div></div>
+        <div class="widget-item expense"><div class="wi-lbl">Pengeluaran</div><div class="wi-val" id="wExpense">Rp 0</div></div>
+        <div class="widget-item saving"><div class="wi-lbl">Tabungan</div><div class="wi-val" id="wSaving">Rp 0</div></div>
+        <div class="widget-item remaining"><div class="wi-lbl">Sisa</div><div class="wi-val" id="wRemaining">Rp 0</div></div>
+      </div>
+      <div style="font-size:11px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">5 Transaksi Terakhir</div>
+      <div class="widget-txns" id="widgetTxns"></div>
+    </div>
+  </div>
   <div class="user-tabs">
     <button class="user-tab active" onclick="switchUser('semua')" id="tab-semua">Berdua</button>
     <button class="user-tab" onclick="switchUser('saya')" id="tab-saya" id="tab-self">Saya</button>
@@ -364,6 +419,7 @@
     <button class="nav-btn" onclick="showPanel('list')" id="nav-list">Riwayat</button>
     <button class="nav-btn" onclick="showPanel('saving')" id="nav-saving">Tabungan</button>
     <button class="nav-btn" onclick="showPanel('laporan')" id="nav-laporan">Laporan</button>
+    <button class="nav-btn" onclick="showPanel('backup')" id="nav-backup">Lainnya</button>
   </nav>
 
   <!-- Panel: Tambah -->
@@ -468,6 +524,33 @@
     <div class="chart-wrap">
       <div class="chart-title">Tren 6 Bulan Terakhir</div>
       <div id="trendBars"></div>
+    </div>
+  </div>
+</div>
+
+  <!-- Panel: Backup & Restore -->
+  <div class="panel" id="panel-backup">
+    <div class="sec-title">data &amp; backup</div>
+    <div class="backup-stats">
+      <div class="backup-stat"><div class="bs-val" id="bsTotalTxn">0</div><div class="bs-lbl">Transaksi</div></div>
+      <div class="backup-stat"><div class="bs-val" id="bsTotalBulan">0</div><div class="bs-lbl">Bulan</div></div>
+      <div class="backup-stat"><div class="bs-val" id="bsTotalUser">0</div><div class="bs-lbl">Pengguna</div></div>
+    </div>
+    <div class="backup-card">
+      <h3><svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>Export Backup</h3>
+      <p>Download semua data transaksi ke file JSON. Simpan di tempat aman sebagai cadangan.</p>
+      <button class="backup-btn export" onclick="exportBackup()">⬇ Download Backup (.json)</button>
+    </div>
+    <div class="backup-card">
+      <h3><svg viewBox="0 0 24 24"><path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/></svg>Import / Restore</h3>
+      <p>Pulihkan data dari file backup JSON yang pernah diexport sebelumnya.</p>
+      <input type="file" id="importFile" accept=".json" style="display:none" onchange="importBackup(this)" />
+      <button class="backup-btn import" onclick="document.getElementById('importFile').click()">⬆ Pilih File Backup (.json)</button>
+    </div>
+    <div class="backup-card">
+      <h3><svg viewBox="0 0 24 24" style="fill:#E24B4A"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>Reset Data</h3>
+      <p>Hapus semua data lokal di HP ini. Data di Google Sheets tidak akan terhapus.</p>
+      <button class="backup-btn danger" onclick="resetLocalData()">🗑 Hapus Data Lokal</button>
     </div>
   </div>
 </div>
@@ -704,11 +787,12 @@ function updateMonthLabel() {
 }
 
 function showPanel(p) {
-  ['add','list','saving','laporan'].forEach(x => {
+  ['add','list','saving','laporan','backup'].forEach(x => {
     document.getElementById('panel-' + x).className = 'panel' + (x === p ? ' active' : '');
     document.getElementById('nav-' + x).className = 'nav-btn' + (x === p ? ' active' : '');
   });
   if (p === 'laporan') renderChart();
+  if (p === 'backup') renderBackupStats();
 }
 
 function setFilter(f) {
@@ -801,6 +885,7 @@ function updateUI() {
   document.getElementById('balanceDisplay').textContent = fmt(remaining);
   renderList();
   renderSaving();
+  renderWidget();
 }
 
 function setSyncStatus(state, text) {
@@ -1090,6 +1175,131 @@ function renderChart() {
       <span style="font-size:11px;color:#666;display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:#1D9E75;border-radius:2px;display:inline-block"></span>Pemasukan</span>
       <span style="font-size:11px;color:#666;display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:#E24B4A;border-radius:2px;display:inline-block"></span>Pengeluaran</span>
     </div>`;
+}
+
+
+// ── Widget Ringkasan ───────────────────────────────────────
+let widgetOpen = false;
+
+function toggleWidget() {
+  widgetOpen = !widgetOpen;
+  document.getElementById('widgetBar').classList.toggle('open', widgetOpen);
+  document.getElementById('widgetToggle').classList.toggle('open', widgetOpen);
+  if (widgetOpen) renderWidget();
+}
+
+function renderWidget() {
+  const txns = getMonthTxns();
+  const income    = txns.filter(t => t.type==='income').reduce((s,t)=>s+parseFloat(t.amount),0);
+  const expense   = txns.filter(t => t.type==='expense').reduce((s,t)=>s+parseFloat(t.amount),0);
+  const saving    = txns.filter(t => t.type==='saving').reduce((s,t)=>s+parseFloat(t.amount),0);
+  const remaining = income - expense - saving;
+  document.getElementById('wIncome').textContent    = fmt(income);
+  document.getElementById('wExpense').textContent   = fmt(expense);
+  document.getElementById('wSaving').textContent    = fmt(saving);
+  document.getElementById('wRemaining').textContent = fmt(remaining);
+
+  // Last 5 transactions
+  const last5 = getMonthTxns().slice(-5).reverse();
+  const el = document.getElementById('widgetTxns');
+  if (!last5.length) {
+    el.innerHTML = '<div style="font-size:12px;color:#bbb;text-align:center;padding:8px 0">Belum ada transaksi</div>';
+    return;
+  }
+  const sign = t => t.type === 'expense' ? '-' : '+';
+  el.innerHTML = last5.map(t => `
+    <div class="widget-txn">
+      <div class="wt-name">${t.name}</div>
+      <div class="wt-amt ${t.type}">${sign(t)} ${fmt(t.amount)}</div>
+    </div>`).join('');
+}
+
+// ── Backup & Restore ───────────────────────────────────────
+function renderBackupStats() {
+  const total = transactions.length;
+  const months = new Set(transactions.map(t => {
+    const d = new Date(t.date);
+    return d.getFullYear() + '-' + d.getMonth();
+  })).size;
+  const users = new Set(transactions.map(t => t.user)).size;
+  document.getElementById('bsTotalTxn').textContent   = total;
+  document.getElementById('bsTotalBulan').textContent = months;
+  document.getElementById('bsTotalUser').textContent  = users;
+}
+
+function exportBackup() {
+  const backup = {
+    version: '1.0',
+    exported_at: new Date().toISOString(),
+    exported_by: myName,
+    total: transactions.length,
+    transactions: transactions
+  };
+  const json = JSON.stringify(backup, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  const date = new Date().toISOString().slice(0,10);
+  a.href     = url;
+  a.download = `keuangan-keluarga-backup-${date}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('✓ Backup berhasil didownload');
+}
+
+function importBackup(input) {
+  if (!input.files || !input.files[0]) return;
+  const file = input.files[0];
+  const reader = new FileReader();
+  reader.onload = async function(e) {
+    try {
+      const backup = JSON.parse(e.target.result);
+      if (!backup.transactions || !Array.isArray(backup.transactions)) {
+        showToast('File backup tidak valid'); return;
+      }
+      const count = backup.transactions.length;
+      if (!confirm('Import ' + count + ' transaksi dari backup? Data yang sudah ada tidak akan duplikat.')) return;
+
+      showLoading(`Mengimport ${count} transaksi...`);
+      let imported = 0;
+      let failed = 0;
+
+      // Import one by one
+      for (const txn of backup.transactions) {
+        // Skip if ID already exists
+        if (transactions.find(t => String(t.id) === String(txn.id))) {
+          imported++;
+          continue;
+        }
+        try {
+          const encoded = encodeURIComponent(JSON.stringify(txn));
+          const res = await jsonp(`${scriptUrl}?action=add&data=${encoded}`);
+          if (!res.error) {
+            transactions.push(txn);
+            imported++;
+          } else { failed++; }
+        } catch(e) { failed++; }
+      }
+
+      hideLoading();
+      updateUI();
+      renderBackupStats();
+      showToast(`✓ Import selesai: ${imported} berhasil${failed ? ', ' + failed + ' gagal' : ''}`);
+      input.value = '';
+    } catch(err) {
+      hideLoading();
+      showToast('Gagal membaca file backup');
+    }
+  };
+  reader.readAsText(file);
+}
+
+function resetLocalData() {
+  if (!confirm('Hapus semua data lokal di HP ini? Data di Google Sheets TIDAK akan terhapus.')) return;
+  transactions = [];
+  updateUI();
+  renderBackupStats();
+  showToast('Data lokal berhasil dihapus');
 }
 
 // ── Auto-refresh every 30 seconds ──────────────────────────
