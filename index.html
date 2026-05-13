@@ -667,12 +667,10 @@ let lastSavedTxn = null; // for rollback
 
 // ── Setup ──────────────────────────────────────────────────
 function saveSetup() {
-  const url = document.getElementById('scriptUrl').value.trim();
   const name = document.getElementById('userName').value.trim();
   if (!name) { showToast('Masukkan nama kamu dulu'); return; }
-  localStorage.setItem('kk_script_url', url);
   localStorage.setItem('kk_my_name', name);
-  startApp(url, name);
+  startApp('', name);
 }
 
 function resetSetup() {
@@ -684,8 +682,10 @@ function resetSetup() {
 }
 
 function startApp(url, name) {
-  scriptUrl = url;
   myName = name;
+  // Load token from session if exists
+  const savedToken = sessionStorage.getItem('kk_token');
+  if (savedToken) authToken = savedToken;
   document.getElementById('setupScreen').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
   document.getElementById('tab-saya').textContent = name;
@@ -713,55 +713,45 @@ function handleAmountKey(e) {
   if (e.key < '0' || e.key > '9') e.preventDefault();
 }
 
-// ── JSONP Helper (redirect-safe) ──────────────────────────
-function jsonp(url) {
-  return new Promise((resolve, reject) => {
-    const cbName = 'jsonp_cb_' + Math.random().toString(36).slice(2);
-    let done = false;
-    const script = document.createElement('script');
+// ── API Config ─────────────────────────────────────────────
+// Ganti dengan URL Cloudflare Worker kamu setelah deploy
+const API_URL = 'https://keuangan-keluarga-api.ridzaladeputra.workers.dev';
+let authToken = '';
 
-    const timer = setTimeout(() => {
-      if (done) return;
-      done = true;
-      cleanup();
-      reject(new Error('Timeout'));
-    }, 15000);
-
-    function cleanup() {
-      clearTimeout(timer);
-      try { delete window[cbName]; } catch(e) { window[cbName] = undefined; }
-      if (script.parentNode) script.parentNode.removeChild(script);
+// ── API Helper ──────────────────────────────────────────────
+async function apiFetch(path, method = 'GET', body = null) {
+  const opts = {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {})
     }
+  };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(API_URL + path, opts);
+  return res.json();
+}
 
-    // Register callback BEFORE appending script
-    window[cbName] = function(data) {
-      if (done) return;
-      done = true;
-      cleanup();
-      resolve(data);
-    };
-
-    script.onerror = function() {
-      if (done) return;
-      done = true;
-      cleanup();
-      reject(new Error('Network error'));
-    };
-
-    // Add cache buster to avoid stale responses
-    const sep = url.includes('?') ? '&' : '?';
-    script.src = url + sep + 'callback=' + cbName + '&_t=' + Date.now();
-    script.async = true;
-    document.head.appendChild(script);
-  });
+// ── Auth ────────────────────────────────────────────────────
+async function loginWithPin(pin, name) {
+  try {
+    const data = await apiFetch('/auth/login', 'POST', { pin, name });
+    if (data.token) {
+      authToken = data.token;
+      sessionStorage.setItem('kk_token', data.token);
+      sessionStorage.setItem('kk_session', Date.now().toString());
+      return true;
+    }
+  } catch(e) {}
+  return false;
 }
 
 // ── API ────────────────────────────────────────────────────
 async function loadTransactions() {
   setSyncStatus('syncing', 'Memuat data...');
-  showLoading('Memuat data dari Google Sheets...');
+  showLoading('Memuat data...');
   try {
-    const data = await jsonp(`${scriptUrl}?action=getAll`);
+    const data = await apiFetch('/transactions');
     if (data.error) throw new Error(data.error);
     transactions = data.transactions || [];
     setSyncStatus('synced', 'Data tersinkron');
@@ -787,14 +777,16 @@ async function addTransaction() {
   setSyncStatus('syncing', 'Menyimpan...');
 
   try {
-    // Upload photo first if exists
     let photoUrl = '';
     if (pendingPhotoBase64) {
       btn.textContent = 'Upload foto...';
       try {
-        const upRes = await jsonp(`${scriptUrl}?action=uploadPhoto&filename=struk_${Date.now()}.jpg&data=${encodeURIComponent(pendingPhotoBase64)}`);
+        const upRes = await apiFetch('/upload', 'POST', {
+          imageBase64: pendingPhotoBase64,
+          filename: 'struk_' + Date.now() + '.jpg'
+        });
         if (upRes && upRes.url) photoUrl = upRes.url;
-      } catch(e) { /* foto gagal upload, lanjut tanpa foto */ }
+      } catch(e) {}
     }
 
     const txn = {
@@ -802,15 +794,12 @@ async function addTransaction() {
       name, amount, type: currentType, category,
       user: myName,
       date: new Date().toISOString(),
-      memo: memo,
-      photo: photoUrl
+      memo, photo: photoUrl
     };
 
-    const encoded = encodeURIComponent(JSON.stringify(txn));
-    const data = await jsonp(`${scriptUrl}?action=add&data=${encoded}`);
+    const data = await apiFetch('/transactions', 'POST', txn);
     if (data.error) throw new Error(data.error);
     transactions.push(txn);
-    lastSavedTxn = txn;
     document.getElementById('txnName').value = '';
     document.getElementById('txnAmount').value = '';
     document.getElementById('txnMemo').value = '';
@@ -829,10 +818,9 @@ async function addTransaction() {
 }
 
 async function deleteTransaction(id) {
-  if (!confirm('Hapus transaksi ini?')) return;
   setSyncStatus('syncing', 'Menghapus...');
   try {
-    const data = await jsonp(`${scriptUrl}?action=delete&id=${id}`);
+    const data = await apiFetch('/transactions/' + id, 'DELETE');
     if (data.error) throw new Error(data.error);
     transactions = transactions.filter(t => String(t.id) !== String(id));
     setSyncStatus('synced', 'Data tersinkron');
@@ -844,506 +832,6 @@ async function deleteTransaction(id) {
   }
 }
 
-// ── UI Helpers ──────────────────────────────────────────────
-function setType(t) {
-  currentType = t;
-  ['income','expense','saving'].forEach(x => {
-    document.getElementById('type-' + x).className = 'type-btn ' + x + (x === t ? ' active' : '');
-  });
-  document.getElementById('txnCategory').innerHTML = CATS[t].map(c => `<option>${c}</option>`).join('');
-}
-
-function switchUser(u) {
-  currentUser = u;
-  ['semua','saya','other'].forEach(x => {
-    const el = document.getElementById('tab-' + x);
-    if (el) el.className = 'user-tab' + (x === u ? ' active' : '');
-  });
-  updateUI();
-}
-
-function changeMonth(dir) { monthOffset += dir; updateMonthLabel(); updateUI(); }
-
-function updateMonthLabel() {
-  const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() + monthOffset);
-  document.getElementById('monthLabel').textContent = MONTHS_ID[d.getMonth()] + ' ' + d.getFullYear();
-}
-
-function showPanel(p) {
-  ['add','list','saving','laporan','backup'].forEach(x => {
-    document.getElementById('panel-' + x).className = 'panel' + (x === p ? ' active' : '');
-    document.getElementById('nav-' + x).className = 'nav-btn' + (x === p ? ' active' : '');
-  });
-  animatePanel(p);
-  if (p === 'laporan') { renderChart(); renderCompareTable(); }
-  if (p === 'backup') renderBackupStats();
-}
-
-function setFilter(f) {
-  currentFilter = f;
-  ['semua','income','expense','saving'].forEach(x => {
-    document.getElementById('filter-' + x).className = 'filter-chip' + (x === f ? ' active' : '');
-  });
-  renderList();
-}
-
-function getMonthTxns() {
-  const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() + monthOffset);
-  const m = d.getMonth(), y = d.getFullYear();
-  return transactions.filter(t => {
-    const td = new Date(t.date);
-    const userOk = currentUser === 'semua' || t.user === myName ? currentUser === 'semua' || currentUser === 'saya' : currentUser === 'other';
-    return userOk && td.getMonth() === m && td.getFullYear() === y;
-  });
-}
-
-function getAllUserTxns() {
-  return transactions.filter(t => {
-    if (currentUser === 'semua') return true;
-    if (currentUser === 'saya') return t.user === myName;
-    return t.user !== myName;
-  });
-}
-
-function fmt(n) { return 'Rp ' + Math.round(n).toLocaleString('id-ID'); }
-
-const SVG_INCOME  = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 12l-1.41-1.41L13 16.17V4h-2v12.17l-5.58-5.59L4 12l8 8 8-8z"/></svg>`;
-const SVG_EXPENSE = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 12l1.41 1.41L11 7.83V20h2V7.83l5.58 5.59L20 12l-8-8-8 8z"/></svg>`;
-const SVG_SAVING  = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14l-5-5 1.41-1.41L12 14.17l7.59-7.59L21 8l-9 9z"/></svg>`;
-const ICONS = { income: SVG_INCOME, expense: SVG_EXPENSE, saving: SVG_SAVING };
-
-function renderTxnItem(t) {
-  const sign = t.type === 'expense' ? '-' : '+';
-  const dateStr = new Date(t.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
-  const memoHtml = t.memo ? `<div class="txn-memo">📝 ${t.memo}</div>` : '';
-  const photoHtml = t.photo ? `<a class="txn-photo-link" href="${t.photo}" target="_blank"><svg viewBox="0 0 24 24"><path d="M20 5h-3.17L15 3H9L7.17 5H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm-8 13c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/></svg>Lihat struk</a>` : '';
-  return `<div class="txn-item" id="txn-${t.id}" data-id="${t.id}">
-    <div class="txn-delete-bg"><svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></div>
-    <div class="txn-content">
-      <div class="txn-icon ${t.type}">${ICONS[t.type]}</div>
-      <div class="txn-info">
-        <div class="txn-name">${t.name}</div>
-        <div class="txn-meta">${t.category} · ${t.user} · ${dateStr}</div>
-        ${memoHtml}${photoHtml}
-      </div>
-      <div class="txn-right">
-        <span class="txn-amt ${t.type}">${sign} ${fmt(t.amount)}</span>
-      </div>
-    </div>
-  </div>`;
-}
-
-function renderList() {
-  const txns = getMonthTxns().filter(t => currentFilter === 'semua' || t.type === currentFilter);
-  document.getElementById('txnList').innerHTML = txns.length
-    ? txns.slice().reverse().map(renderTxnItem).join('')
-    : `<div class="empty-state"><svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>Belum ada transaksi bulan ini</div>`;
-}
-
-function renderSaving() {
-  const allTxns = getAllUserTxns();
-  const allSavings = allTxns.filter(t => t.type === 'saving');
-  const allIncome = allTxns.filter(t => t.type === 'income').reduce((s,t) => s + parseFloat(t.amount), 0);
-  const totalSav = allSavings.reduce((s,t) => s + parseFloat(t.amount), 0);
-  document.getElementById('savingTotal').textContent = fmt(totalSav);
-  const pct = allIncome > 0 ? Math.min(100, Math.round(totalSav / allIncome * 100)) : 0;
-  document.getElementById('savingBar').style.width = pct + '%';
-  document.getElementById('savingSubtext').textContent = allIncome > 0
-    ? `${pct}% dari total pemasukan berhasil ditabung` : 'Mulai menabung sekarang!';
-  const monthSav = getMonthTxns().filter(t => t.type === 'saving');
-  document.getElementById('savingList').innerHTML = monthSav.length
-    ? monthSav.slice().reverse().map(renderTxnItem).join('')
-    : `<div class="empty-state"><svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg>Belum ada tabungan bulan ini</div>`;
-}
-
-function updateUI() {
-  const txns = getMonthTxns();
-  const income    = txns.filter(t => t.type === 'income').reduce((s,t) => s + parseFloat(t.amount), 0);
-  const expense   = txns.filter(t => t.type === 'expense').reduce((s,t) => s + parseFloat(t.amount), 0);
-  const saving    = txns.filter(t => t.type === 'saving').reduce((s,t) => s + parseFloat(t.amount), 0);
-  const remaining = income - expense - saving;
-  document.getElementById('totalIncome').textContent    = fmt(income);
-  document.getElementById('totalExpense').textContent   = fmt(expense);
-  document.getElementById('totalSaving').textContent    = fmt(saving);
-  document.getElementById('totalRemaining').textContent = fmt(remaining);
-  document.getElementById('balanceDisplay').textContent = fmt(remaining);
-  renderList();
-  renderSaving();
-  renderWidget();
-}
-
-function setSyncStatus(state, text) {
-  const bar = document.getElementById('syncBar');
-  bar.className = 'sync-bar ' + state;
-  document.getElementById('syncText').textContent = text;
-}
-
-function showLoading(text) {
-  document.getElementById('loadingText').textContent = text || 'Memuat...';
-  document.getElementById('loadingOverlay').classList.add('show');
-}
-function hideLoading() { document.getElementById('loadingOverlay').classList.remove('show'); }
-
-let toastTimer;
-let rollbackTimer;
-
-function showToast(msg) {
-  const t = document.getElementById('toast');
-  t.innerHTML = msg;
-  t.classList.add('show');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
-}
-
-function showRollbackToast(txn) {
-  const t = document.getElementById('toast');
-  t.innerHTML = `Tersimpan ✓ &nbsp;<button onclick="rollbackTransaction()" style="background:rgba(255,255,255,0.25);border:none;color:white;padding:3px 10px;border-radius:10px;font-size:12px;cursor:pointer;font-weight:600">Batalkan</button>`;
-  t.classList.add('show');
-  clearTimeout(toastTimer);
-  clearTimeout(rollbackTimer);
-  rollbackTimer = setTimeout(() => {
-    t.classList.remove('show');
-    lastSavedTxn = null;
-  }, 6000);
-}
-
-async function rollbackTransaction() {
-  if (!lastSavedTxn) return;
-  const txn = lastSavedTxn;
-  lastSavedTxn = null;
-  clearTimeout(rollbackTimer);
-  document.getElementById('toast').classList.remove('show');
-  setSyncStatus('syncing', 'Membatalkan...');
-  try {
-    const data = await jsonp(`${scriptUrl}?action=delete&id=${txn.id}`);
-    if (data.error) throw new Error(data.error);
-    transactions = transactions.filter(t => String(t.id) !== String(txn.id));
-    setSyncStatus('synced', 'Transaksi dibatalkan');
-    showToast('✓ Transaksi berhasil dibatalkan');
-    updateUI();
-  } catch(e) {
-    setSyncStatus('error', 'Gagal membatalkan');
-    showToast('Gagal membatalkan transaksi');
-  }
-}
-
-
-// ── PIN (SHA-256 secured) ──────────────────────────────────
-// PIN asli tidak tersimpan di kode — hanya hash SHA-256
-const _H = '4c542e8ee4ab6001118e42f1315b7513938332babceaa67b5f73a3531e601333';
-const _S = 'KK_FAMILY_2026_SECURE';
-let pinInput = '';
-let failCount = 0;
-let lockUntil = 0;
-
-async function _hash(str) {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
-  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
-}
-
-function showPinScreen() {
-  document.getElementById('pinScreen').style.display = 'flex';
-  document.getElementById('setupScreen').style.display = 'none';
-  document.getElementById('app').style.display = 'none';
-  pinInput = '';
-  updatePinDots();
-  document.getElementById('pinPrompt').textContent = 'Masukkan PIN';
-  document.getElementById('pinHint').textContent = '';
-  document.getElementById('pinError').textContent = '';
-  checkLockout();
-}
-
-function checkLockout() {
-  const now = Date.now();
-  if (lockUntil > now) {
-    const sisa = Math.ceil((lockUntil - now) / 1000);
-    document.getElementById('pinError').textContent = `Terkunci ${sisa} detik lagi`;
-    document.querySelectorAll('.pin-btn').forEach(b => b.disabled = true);
-    setTimeout(checkLockout, 1000);
-  } else {
-    document.querySelectorAll('.pin-btn').forEach(b => b.disabled = false);
-    if (lockUntil > 0) {
-      lockUntil = 0;
-      document.getElementById('pinError').textContent = '';
-    }
-  }
-}
-
-function pinPress(num) {
-  if (!num || lockUntil > Date.now()) return;
-  if (pinInput.length >= 6) return;
-  pinInput += num;
-  updatePinDots();
-  if (pinInput.length === 6) {
-    setTimeout(() => checkPin(), 150);
-  }
-}
-
-function pinDel() {
-  if (lockUntil > Date.now()) return;
-  pinInput = pinInput.slice(0, -1);
-  updatePinDots();
-  document.getElementById('pinError').textContent = '';
-  for (let i = 0; i < 6; i++) {
-    const d = document.getElementById('dot' + i);
-    if (d) d.classList.remove('error');
-  }
-}
-
-function updatePinDots() {
-  for (let i = 0; i < 6; i++) {
-    const dot = document.getElementById('dot' + i);
-    if (!dot) continue;
-    dot.classList.remove('error');
-    dot.classList.toggle('filled', i < pinInput.length);
-  }
-}
-
-async function checkPin() {
-  const hashed = await _hash(_S + pinInput);
-  if (hashed === _H) {
-    failCount = 0;
-    // Save session — valid 24 jam
-    sessionStorage.setItem('kk_session', Date.now().toString());
-    document.getElementById('pinScreen').style.display = 'none';
-    const url  = localStorage.getItem('kk_script_url');
-    const name = localStorage.getItem('kk_my_name');
-    if (url && name) {
-      startApp(url, name);
-    } else {
-      document.getElementById('setupScreen').style.display = 'flex';
-    }
-  } else {
-    failCount++;
-    for (let i = 0; i < 6; i++) {
-      const d = document.getElementById('dot' + i);
-      if (d) d.classList.add('error');
-    }
-    if (failCount >= 5) {
-      lockUntil = Date.now() + 30000;
-      document.getElementById('pinError').textContent = 'Terlalu banyak percobaan! Terkunci 30 detik';
-      checkLockout();
-    } else {
-      document.getElementById('pinError').textContent = `PIN salah (${failCount}/5 percobaan)`;
-    }
-    pinInput = '';
-    setTimeout(() => { updatePinDots(); }, 600);
-  }
-}
-
-
-
-// ── Splash Screen ──────────────────────────────────────────
-function hideSplash() {
-  const splash = document.getElementById('splashScreen');
-  if (!splash) return;
-  splash.classList.add('fade-out');
-  setTimeout(() => { splash.style.display = 'none'; }, 700);
-}
-
-// ── Panel Transitions ──────────────────────────────────────
-function animatePanel(id) {
-  const el = document.getElementById('panel-' + id);
-  if (!el) return;
-  el.style.opacity = '0';
-  el.style.transform = 'translateY(8px)';
-  requestAnimationFrame(() => {
-    el.style.transition = 'opacity 0.25s ease, transform 0.25s ease';
-    el.style.opacity = '1';
-    el.style.transform = 'translateY(0)';
-  });
-}
-
-// ── Pull to Refresh ────────────────────────────────────────
-let ptrStartY = 0;
-let ptrActive = false;
-
-document.addEventListener('touchstart', e => {
-  if (window.scrollY === 0) ptrStartY = e.touches[0].clientY;
-}, { passive: true });
-
-document.addEventListener('touchmove', e => {
-  if (!ptrStartY) return;
-  const dy = e.touches[0].clientY - ptrStartY;
-  if (dy > 60 && !ptrActive) {
-    ptrActive = true;
-    document.getElementById('ptrIndicator').classList.add('show');
-  }
-}, { passive: true });
-
-document.addEventListener('touchend', () => {
-  if (ptrActive) {
-    ptrActive = false;
-    ptrStartY = 0;
-    loadTransactions().finally(() => {
-      document.getElementById('ptrIndicator').classList.remove('show');
-    });
-  }
-});
-
-// ── Swipe to Delete ────────────────────────────────────────
-let swipeEl = null, swipeStartX = 0, swipeCurX = 0;
-
-document.addEventListener('touchstart', e => {
-  const item = e.target.closest('.txn-item');
-  if (!item) return;
-  swipeEl = item;
-  swipeStartX = e.touches[0].clientX;
-  swipeCurX = swipeStartX;
-}, { passive: true });
-
-document.addEventListener('touchmove', e => {
-  if (!swipeEl) return;
-  swipeCurX = e.touches[0].clientX;
-  const dx = swipeStartX - swipeCurX;
-  if (dx > 0) {
-    const content = swipeEl.querySelector('.txn-content');
-    if (content) content.style.transform = `translateX(-${Math.min(dx, 80)}px)`;
-  }
-}, { passive: true });
-
-document.addEventListener('touchend', () => {
-  if (!swipeEl) return;
-  const dx = swipeStartX - swipeCurX;
-  const content = swipeEl.querySelector('.txn-content');
-  if (dx > 60) {
-    // Confirm delete with animation
-    const id = swipeEl.dataset.id;
-    swipeEl.classList.add('deleting');
-    setTimeout(() => {
-      if (confirm('Hapus transaksi ini?')) {
-        deleteTransaction(id);
-      } else {
-        swipeEl.classList.remove('deleting');
-        if (content) content.style.transform = '';
-      }
-    }, 150);
-  } else {
-    if (content) content.style.transform = '';
-  }
-  swipeEl = null;
-  swipeStartX = 0;
-  swipeCurX = 0;
-});
-
-// ── Export PDF ─────────────────────────────────────────────
-function exportPDF() {
-  const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() + chartOffset);
-  const bulan = MONTHS_ID[d.getMonth()] + ' ' + d.getFullYear();
-  const txns = getChartMonthTxns(chartOffset);
-  const income  = txns.filter(t => t.type==='income').reduce((s,t)=>s+parseFloat(t.amount),0);
-  const expense = txns.filter(t => t.type==='expense').reduce((s,t)=>s+parseFloat(t.amount),0);
-  const saving  = txns.filter(t => t.type==='saving').reduce((s,t)=>s+parseFloat(t.amount),0);
-
-  // Category breakdown
-  const catMap = {};
-  txns.filter(t=>t.type==='expense').forEach(t => {
-    catMap[t.category] = (catMap[t.category]||0) + parseFloat(t.amount);
-  });
-  const catRows = Object.entries(catMap).sort((a,b)=>b[1]-a[1])
-    .map(([cat,val]) => `<tr><td>${cat}</td><td style="text-align:right">${fmt(val)}</td><td style="text-align:right;color:#888">${income>0?Math.round(val/income*100):0}%</td></tr>`).join('');
-
-  const txnRows = txns.slice().reverse().map(t => {
-    const sign = t.type==='expense'?'-':'+';
-    const color = t.type==='income'?'#1D9E75':t.type==='expense'?'#E24B4A':'#185FA5';
-    return `<tr><td>${new Date(t.date).toLocaleDateString('id-ID',{day:'numeric',month:'short'})}</td><td>${t.name}</td><td>${t.category}</td><td>${t.user}</td><td style="text-align:right;color:${color};font-weight:600">${sign} ${fmt(t.amount)}</td></tr>`;
-  }).join('');
-
-  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
-<title>Laporan Keuangan - ${bulan}</title>
-<style>
-  body{font-family:-apple-system,sans-serif;color:#1a1a1a;padding:32px;max-width:800px;margin:0 auto}
-  .header{background:linear-gradient(135deg,#1D9E75,#0F6E56);color:white;padding:24px 28px;border-radius:16px;margin-bottom:24px}
-  .header h1{margin:0;font-size:22px}
-  .header p{margin:6px 0 0;opacity:0.8;font-size:13px}
-  .summary{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px}
-  .sum-card{background:#f8f8f8;border-radius:12px;padding:14px;text-align:center}
-  .sum-card .lbl{font-size:11px;color:#888;text-transform:uppercase;font-weight:600}
-  .sum-card .val{font-size:17px;font-weight:700;margin-top:4px}
-  .sum-card.income .val{color:#1D9E75} .sum-card.expense .val{color:#E24B4A}
-  .sum-card.saving .val{color:#185FA5} .sum-card.remaining .val{color:#BA7517}
-  table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:24px}
-  th{background:#f4f4f4;padding:8px 10px;text-align:left;font-weight:600;color:#555}
-  td{padding:7px 10px;border-bottom:1px solid #f0f0f0}
-  h2{font-size:14px;color:#333;margin:0 0 10px;padding-bottom:6px;border-bottom:2px solid #1D9E75}
-  .footer{text-align:center;font-size:11px;color:#bbb;margin-top:24px}
-</style></head><body>
-<div class="header">
-  <h1>📊 Laporan Keuangan Keluarga</h1>
-  <p>Periode: ${bulan} &nbsp;|&nbsp; Dibuat: ${new Date().toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'})}</p>
-</div>
-<div class="summary">
-  <div class="sum-card income"><div class="lbl">Pemasukan</div><div class="val">${fmt(income)}</div></div>
-  <div class="sum-card expense"><div class="lbl">Pengeluaran</div><div class="val">${fmt(expense)}</div></div>
-  <div class="sum-card saving"><div class="lbl">Tabungan</div><div class="val">${fmt(saving)}</div></div>
-  <div class="sum-card remaining"><div class="lbl">Sisa</div><div class="val">${fmt(income-expense-saving)}</div></div>
-</div>
-<h2>Pengeluaran per Kategori</h2>
-<table><thead><tr><th>Kategori</th><th style="text-align:right">Jumlah</th><th style="text-align:right">% Pemasukan</th></tr></thead><tbody>${catRows||'<tr><td colspan=3 style=text-align:center;color:#bbb>Tidak ada data</td></tr>'}</tbody></table>
-<h2>Riwayat Transaksi</h2>
-<table><thead><tr><th>Tanggal</th><th>Keterangan</th><th>Kategori</th><th>Oleh</th><th style="text-align:right">Jumlah</th></tr></thead><tbody>${txnRows||'<tr><td colspan=5 style=text-align:center;color:#bbb>Tidak ada transaksi</td></tr>'}</tbody></table>
-<div class="footer">Keuangan Keluarga &copy; ${new Date().getFullYear()} &mdash; Dibuat otomatis dari aplikasi</div>
-
-<!-- PWA Install Banner -->
-<div class="install-banner" id="installBanner">
-  <img src="icon-192.png" alt="Logo" />
-  <div class="ib-text">
-    <strong>Install Keuangan Keluarga</strong>
-    <span>Tambahkan ke layar utama HP kamu</span>
-  </div>
-  <button class="ib-btn" onclick="installPWA()">Install</button>
-  <button class="ib-close" onclick="dismissInstall()">✕</button>
-</div>
-
-</body></html>`;
-
-  const blob = new Blob([html], { type: 'text/html' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href     = url;
-  a.download = `laporan-keuangan-${bulan.replace(' ','-')}.html`;
-  a.click();
-  URL.revokeObjectURL(url);
-  showToast('✓ Laporan berhasil didownload');
-}
-
-// ── Perbandingan Bulan ─────────────────────────────────────
-function renderCompareTable() {
-  const cur  = getChartMonthTxns(chartOffset);
-  const prev = getChartMonthTxns(chartOffset - 1);
-  const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() + chartOffset);
-  const dp = new Date(); dp.setDate(1); dp.setMonth(dp.getMonth() + chartOffset - 1);
-  const lblCur  = MONTHS_ID[d.getMonth()].slice(0,3);
-  const lblPrev = MONTHS_ID[dp.getMonth()].slice(0,3);
-
-  const calc = (txns, type) => txns.filter(t=>t.type===type).reduce((s,t)=>s+parseFloat(t.amount),0);
-  const rows = [
-    { label: 'Pemasukan',   cur: calc(cur,'income'),  prev: calc(prev,'income'),  up: true },
-    { label: 'Pengeluaran', cur: calc(cur,'expense'), prev: calc(prev,'expense'), up: false },
-    { label: 'Tabungan',    cur: calc(cur,'saving'),  prev: calc(prev,'saving'),  up: true },
-  ];
-  const curSisa  = rows[0].cur - rows[1].cur - rows[2].cur;
-  const prevSisa = rows[0].prev - rows[1].prev - rows[2].prev;
-  rows.push({ label: 'Sisa Uang', cur: curSisa, prev: prevSisa, up: true, bold: true });
-
-  const el = document.getElementById('compareTable');
-  if (!el) return;
-  el.innerHTML = `<table class="compare-table">
-    <thead><tr><th>Kategori</th><th>${lblPrev}</th><th>${lblCur}</th><th>Selisih</th></tr></thead>
-    <tbody>${rows.map(r => {
-      const diff = r.cur - r.prev;
-      const isGood = r.up ? diff >= 0 : diff <= 0;
-      const diffClass = diff === 0 ? '' : isGood ? 'diff-down' : 'diff-up';
-      const diffTxt = diff === 0 ? '—' : (diff>0?'+':'') + fmt(diff);
-      return `<tr${r.bold?' style="font-weight:700"':''}>
-        <td>${r.label}</td>
-        <td>${fmt(r.prev)}</td>
-        <td>${fmt(r.cur)}</td>
-        <td class="${diffClass}">${diffTxt}</td>
-      </tr>`;
-    }).join('')}</tbody>
-  </table>`;
-}
 
 // ── Photo Handling ─────────────────────────────────────────
 let pendingPhotoBase64 = '';
