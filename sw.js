@@ -3,7 +3,7 @@
 //  Handles caching for offline support
 // ============================================================
 
-const CACHE_NAME = 'keuangan-keluarga-v1';
+const CACHE_NAME = 'keuangan-keluarga-v2';
 const ASSETS = [
   '/keuangan-keluarga/',
   '/keuangan-keluarga/index.html',
@@ -40,6 +40,21 @@ self.addEventListener('fetch', event => {
   if (event.request.url.includes('script.google.com') ||
       event.request.url.includes('googleapis.com')) {
     event.respondWith(fetch(event.request));
+    return;
+  }
+
+  if (event.request.mode === 'navigate' || event.request.destination === 'document') {
+    event.respondWith(
+      fetch(event.request)
+        .then(response => {
+          if (response && response.status === 200) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+          }
+          return response;
+        })
+        .catch(() => caches.match('/keuangan-keluarga/index.html'))
+    );
     return;
   }
 
