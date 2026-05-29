@@ -13,6 +13,8 @@
 <meta name="apple-mobile-web-app-title" content="Keuangan Keluarga" />
 <title>Keuangan Keluarga</title>
 <link rel="manifest" href="manifest.json" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <style>
   /* ── Reset & Base ── */
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -1308,6 +1310,149 @@ function exportPDF() {
 }
 
 // ── Perbandingan Bulan ─────────────────────────────────────
+function exportPDF() {
+  const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() + chartOffset);
+  const bulan = MONTHS_ID[d.getMonth()] + ' ' + d.getFullYear();
+  const txns = getChartMonthTxns(chartOffset);
+  const income  = txns.filter(t => t.type==='income').reduce((s,t)=>s+parseFloat(t.amount),0);
+  const expense = txns.filter(t => t.type==='expense').reduce((s,t)=>s+parseFloat(t.amount),0);
+  const saving  = txns.filter(t => t.type==='saving').reduce((s,t)=>s+parseFloat(t.amount),0);
+  const remaining = income - expense - saving;
+  const fileMonth = bulan.replace(/\s+/g, '-').toLowerCase();
+
+  const catMap = {};
+  txns.filter(t=>t.type==='expense').forEach(t => {
+    catMap[t.category] = (catMap[t.category]||0) + parseFloat(t.amount);
+  });
+
+  const jsPDF = window.jspdf && window.jspdf.jsPDF;
+  if (!jsPDF || typeof window.jspdf.jsPDF.API.autoTable !== 'function') {
+    exportPrintableReport(bulan, txns, income, expense, saving, remaining, catMap);
+    showToast('PDF library belum siap. Membuka versi print.');
+    return;
+  }
+
+  try {
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 14;
+    const generatedAt = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+
+    doc.setFillColor(29, 158, 117);
+    doc.roundedRect(margin, 12, pageWidth - (margin * 2), 26, 3, 3, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(16);
+    doc.setFont(undefined, 'bold');
+    doc.text('Laporan Keuangan Keluarga', margin + 5, 24);
+    doc.setFontSize(9);
+    doc.setFont(undefined, 'normal');
+    doc.text(`Periode: ${bulan} | Dibuat: ${generatedAt}`, margin + 5, 31);
+
+    doc.autoTable({
+      startY: 46,
+      head: [['Ringkasan', 'Jumlah']],
+      body: [
+        ['Pemasukan', fmt(income)],
+        ['Pengeluaran', fmt(expense)],
+        ['Tabungan', fmt(saving)],
+        ['Sisa', fmt(remaining)]
+      ],
+      theme: 'grid',
+      styles: { fontSize: 10, cellPadding: 3 },
+      headStyles: { fillColor: [15, 110, 86], textColor: 255 },
+      columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
+      margin: { left: margin, right: margin }
+    });
+
+    const categoryRows = Object.entries(catMap)
+      .sort((a,b)=>b[1]-a[1])
+      .map(([cat,val]) => [cat || '-', fmt(val), `${income>0?Math.round(val/income*100):0}%`]);
+    doc.autoTable({
+      startY: doc.lastAutoTable.finalY + 10,
+      head: [['Pengeluaran per Kategori', 'Jumlah', '% Pemasukan']],
+      body: categoryRows.length ? categoryRows : [['Tidak ada data', '-', '-']],
+      theme: 'striped',
+      styles: { fontSize: 9, cellPadding: 2.5 },
+      headStyles: { fillColor: [244, 246, 244], textColor: [60, 60, 60] },
+      columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' } },
+      margin: { left: margin, right: margin }
+    });
+
+    const txnRows = txns.slice().reverse().map(t => {
+      const sign = t.type === 'expense' ? '-' : '+';
+      return [
+        new Date(t.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }),
+        t.name || '-',
+        t.category || '-',
+        t.user || '-',
+        `${sign} ${fmt(t.amount)}`
+      ];
+    });
+    doc.autoTable({
+      startY: doc.lastAutoTable.finalY + 10,
+      head: [['Tanggal', 'Keterangan', 'Kategori', 'Oleh', 'Jumlah']],
+      body: txnRows.length ? txnRows : [['-', 'Tidak ada transaksi', '-', '-', '-']],
+      theme: 'striped',
+      styles: { fontSize: 8, cellPadding: 2.2, overflow: 'linebreak' },
+      headStyles: { fillColor: [244, 246, 244], textColor: [60, 60, 60] },
+      columnStyles: {
+        0: { cellWidth: 20 },
+        1: { cellWidth: 58 },
+        2: { cellWidth: 34 },
+        3: { cellWidth: 22 },
+        4: { halign: 'right', cellWidth: 36 }
+      },
+      margin: { left: margin, right: margin }
+    });
+
+    const pageCount = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(150);
+      doc.text(`Keuangan Keluarga - Halaman ${i}/${pageCount}`, margin, 288);
+    }
+
+    doc.save(`laporan-keuangan-${fileMonth}.pdf`);
+    showToast('Laporan PDF berhasil didownload');
+  } catch (err) {
+    console.error('PDF export error:', err);
+    exportPrintableReport(bulan, txns, income, expense, saving, remaining, catMap);
+    showToast('PDF gagal dibuat. Membuka versi print.');
+  }
+}
+
+function exportPrintableReport(bulan, txns, income, expense, saving, remaining, catMap) {
+  const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[ch]));
+  const catRows = Object.entries(catMap).sort((a,b)=>b[1]-a[1])
+    .map(([cat,val]) => `<tr><td>${esc(cat || '-')}</td><td>${fmt(val)}</td><td>${income>0?Math.round(val/income*100):0}%</td></tr>`).join('');
+  const txnRows = txns.slice().reverse().map(t => {
+    const sign = t.type==='expense'?'-':'+';
+    return `<tr><td>${new Date(t.date).toLocaleDateString('id-ID',{day:'numeric',month:'short'})}</td><td>${esc(t.name || '-')}</td><td>${esc(t.category || '-')}</td><td>${esc(t.user || '-')}</td><td>${sign} ${fmt(t.amount)}</td></tr>`;
+  }).join('');
+
+  const reportWindow = window.open('', '_blank');
+  if (!reportWindow) return;
+  reportWindow.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Laporan Keuangan - ${esc(bulan)}</title>
+<style>
+body{font-family:Arial,sans-serif;color:#1a1a1a;padding:24px}
+h1{font-size:22px;margin:0 0 6px}.meta{color:#666;font-size:12px;margin-bottom:20px}
+.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:20px}.sum{background:#f4f6f4;padding:10px;border-radius:8px}
+.lbl{font-size:10px;color:#777;text-transform:uppercase}.val{font-size:14px;font-weight:bold;margin-top:4px}
+table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:18px}th,td{border-bottom:1px solid #eee;padding:7px;text-align:left}th{background:#f4f6f4}
+td:nth-child(2),td:nth-child(3),td:last-child{text-align:right}@media print{body{padding:0}.no-print{display:none}}
+</style></head><body>
+<button class="no-print" onclick="window.print()">Print / Simpan PDF</button>
+<h1>Laporan Keuangan Keluarga</h1><div class="meta">Periode: ${esc(bulan)} | Dibuat: ${new Date().toLocaleDateString('id-ID')}</div>
+<div class="summary"><div class="sum"><div class="lbl">Pemasukan</div><div class="val">${fmt(income)}</div></div><div class="sum"><div class="lbl">Pengeluaran</div><div class="val">${fmt(expense)}</div></div><div class="sum"><div class="lbl">Tabungan</div><div class="val">${fmt(saving)}</div></div><div class="sum"><div class="lbl">Sisa</div><div class="val">${fmt(remaining)}</div></div></div>
+<h2>Pengeluaran per Kategori</h2><table><thead><tr><th>Kategori</th><th>Jumlah</th><th>% Pemasukan</th></tr></thead><tbody>${catRows||'<tr><td colspan="3">Tidak ada data</td></tr>'}</tbody></table>
+<h2>Riwayat Transaksi</h2><table><thead><tr><th>Tanggal</th><th>Keterangan</th><th>Kategori</th><th>Oleh</th><th>Jumlah</th></tr></thead><tbody>${txnRows||'<tr><td colspan="5">Tidak ada transaksi</td></tr>'}</tbody></table>
+</body></html>`);
+  reportWindow.document.close();
+}
+
 function renderCompareTable() {
   const cur  = getChartMonthTxns(chartOffset);
   const prev = getChartMonthTxns(chartOffset - 1);
