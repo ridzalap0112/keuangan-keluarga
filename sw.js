@@ -3,7 +3,7 @@
 //  Handles caching for offline support
 // ============================================================
 
-const CACHE_NAME = 'keuangan-keluarga-v2';
+const CACHE_NAME = 'keuangan-keluarga-v3';
 const ASSETS = [
   '/keuangan-keluarga/',
   '/keuangan-keluarga/index.html',

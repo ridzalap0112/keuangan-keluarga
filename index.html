@@ -666,6 +666,8 @@ let scriptUrl = '';
 let myName = '';
 let syncTimeout = null;
 let lastSavedTxn = null; // for rollback
+let transactionsLoading = null;
+const TRANSACTIONS_CACHE_KEY = 'kk_transactions_cache';
 
 // ── Setup ──────────────────────────────────────────────────
 function saveSetup() {
@@ -693,7 +695,9 @@ function startApp(url, name) {
   document.getElementById('tab-saya').textContent = name;
   setType('income');
   updateMonthLabel();
-  loadTransactions();
+  const hasCachedData = restoreTransactionsCache();
+  if (!hasCachedData) updateUI();
+  loadTransactions({ showOverlay: !hasCachedData, silent: hasCachedData });
 }
 
 // ── Rupiah Input Formatter ─────────────────────────────────
@@ -776,6 +780,60 @@ async function loadTransactions() {
   }
 }
 
+loadTransactions = async function(options = {}) {
+  const { showOverlay = false, silent = false } = options;
+  if (!scriptUrl) return;
+  if (transactionsLoading) return transactionsLoading;
+
+  transactionsLoading = (async () => {
+    setSyncStatus('syncing', showOverlay ? 'Memuat data...' : 'Sinkronisasi...');
+    if (showOverlay) showLoading('Memuat data dari Google Sheets...');
+    try {
+      const data = await jsonp(`${scriptUrl}?action=getAll`, showOverlay ? 20000 : 15000);
+      if (data.error) throw new Error(data.error);
+      transactions = data.transactions || [];
+      saveTransactionsCache(transactions);
+      setSyncStatus('synced', 'Data tersinkron');
+      updateUI();
+    } catch(e) {
+      setSyncStatus('error', 'Gagal sinkron - data terakhir tetap tampil');
+      if (!silent) showToast('Gagal sinkron. Data terakhir tetap tampil.');
+    } finally {
+      if (showOverlay) hideLoading();
+      transactionsLoading = null;
+    }
+  })();
+
+  return transactionsLoading;
+};
+
+function restoreTransactionsCache() {
+  try {
+    const raw = localStorage.getItem(TRANSACTIONS_CACHE_KEY);
+    if (!raw) return false;
+    const cached = JSON.parse(raw);
+    if (!cached || !Array.isArray(cached.transactions)) return false;
+    transactions = cached.transactions;
+    updateUI();
+    setSyncStatus('synced', cached.savedAt ? 'Data lokal siap, sinkron di belakang' : 'Data lokal siap');
+    return true;
+  } catch(e) {
+    localStorage.removeItem(TRANSACTIONS_CACHE_KEY);
+    return false;
+  }
+}
+
+function saveTransactionsCache(items) {
+  try {
+    localStorage.setItem(TRANSACTIONS_CACHE_KEY, JSON.stringify({
+      savedAt: Date.now(),
+      transactions: items
+    }));
+  } catch(e) {
+    // Local cache is a convenience only; syncing should keep working without it.
+  }
+}
+
 async function addTransaction() {
   const name = document.getElementById('txnName').value.trim();
   const amount = parseFloat(document.getElementById('txnAmount').value.replace(/[^0-9]/g, ''));
@@ -828,6 +886,7 @@ async function addTransaction() {
     if (data.error) throw new Error(data.error);
     transactions.push(txn);
     lastSavedTxn = txn;
+    saveTransactionsCache(transactions);
     document.getElementById('txnName').value = '';
     document.getElementById('txnAmount').value = '';
     document.getElementById('txnMemo').value = '';
@@ -852,6 +911,7 @@ async function deleteTransaction(id) {
     const data = await jsonp(`${scriptUrl}?action=delete&id=${id}`);
     if (data.error) throw new Error(data.error);
     transactions = transactions.filter(t => String(t.id) !== String(id));
+    saveTransactionsCache(transactions);
     setSyncStatus('synced', 'Data tersinkron');
     showToast('Transaksi dihapus');
     updateUI();
@@ -1035,6 +1095,7 @@ async function rollbackTransaction() {
     const data = await jsonp(`${scriptUrl}?action=delete&id=${txn.id}`);
     if (data.error) throw new Error(data.error);
     transactions = transactions.filter(t => String(t.id) !== String(txn.id));
+    saveTransactionsCache(transactions);
     setSyncStatus('synced', 'Transaksi dibatalkan');
     showToast('✓ Transaksi berhasil dibatalkan');
     updateUI();
@@ -1799,6 +1860,7 @@ function importBackup(input) {
       }
 
       hideLoading();
+      saveTransactionsCache(transactions);
       updateUI();
       renderBackupStats();
       showToast(`✓ Import selesai: ${imported} berhasil${failed ? ', ' + failed + ' gagal' : ''}`);
@@ -1814,13 +1876,28 @@ function importBackup(input) {
 function resetLocalData() {
   if (!confirm('Hapus semua data lokal di HP ini? Data di Google Sheets TIDAK akan terhapus.')) return;
   transactions = [];
+  saveTransactionsCache(transactions);
   updateUI();
   renderBackupStats();
   showToast('Data lokal berhasil dihapus');
 }
 
-// ── Auto-refresh every 30 seconds ──────────────────────────
-setInterval(() => { if (scriptUrl) loadTransactions(); }, 30000);
+// ── Smooth background sync ─────────────────────────────────
+setInterval(() => {
+  if (scriptUrl && document.visibilityState !== 'hidden') {
+    loadTransactions({ silent: true });
+  }
+}, 60000);
+
+document.addEventListener('visibilitychange', () => {
+  if (scriptUrl && document.visibilityState === 'visible') {
+    loadTransactions({ silent: true });
+  }
+});
+
+window.addEventListener('online', () => {
+  if (scriptUrl) loadTransactions({ silent: true });
+});
 
 // ── Session Check ──────────────────────────────────────────
 function isSessionValid() {
@@ -1876,7 +1953,7 @@ if ('serviceWorker' in navigator) {
     // Listen for sync messages from SW
     navigator.serviceWorker.addEventListener('message', e => {
       if (e.data && e.data.type === 'SYNC_REQUIRED' && scriptUrl) {
-        loadTransactions();
+        loadTransactions({ silent: true });
       }
     });
   });
