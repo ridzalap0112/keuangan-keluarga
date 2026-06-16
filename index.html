@@ -834,6 +834,23 @@ function saveTransactionsCache(items) {
   }
 }
 
+function getPhotoUploadErrorMessage(error) {
+  const raw = error && error.message ? error.message : String(error || '');
+  const lower = raw.toLowerCase();
+
+  if (raw.includes('DriveApp') || lower.includes('izin') || lower.includes('permission')) {
+    return 'Upload foto gagal: Apps Script belum diizinkan akses Google Drive. Buka Apps Script, jalankan fungsi upload/doGet, approve izin Drive, lalu deploy ulang Web App.';
+  }
+  if (raw.includes('Foto masih terlalu besar')) return raw;
+  if (raw.includes('Timeout')) {
+    return 'Upload foto timeout. Coba pakai foto yang lebih kecil atau koneksi lebih stabil.';
+  }
+  if (raw.includes('Network error')) {
+    return 'Koneksi ke Apps Script gagal. Cek internet dan URL Apps Script.';
+  }
+  return raw ? `Upload foto gagal: ${raw}` : 'Upload foto gagal.';
+}
+
 async function addTransaction() {
   const name = document.getElementById('txnName').value.trim();
   const amount = parseFloat(document.getElementById('txnAmount').value.replace(/[^0-9]/g, ''));
@@ -863,10 +880,11 @@ async function addTransaction() {
         }
       } catch(e) {
         console.error('Photo upload failed:', e);
+        const photoError = getPhotoUploadErrorMessage(e);
         setSyncStatus('error', 'Upload foto gagal');
-        const saveWithoutPhoto = confirm('Foto bukti gagal diupload. Simpan transaksi tanpa foto? Pilih Batal kalau ingin coba upload lagi.');
+        const saveWithoutPhoto = confirm(`${photoError}\n\nSimpan transaksi tanpa foto? Pilih Batal kalau ingin coba upload lagi.`);
         if (!saveWithoutPhoto) {
-          showToast('Transaksi belum disimpan. Coba pilih foto lagi.');
+          showToast('Transaksi belum disimpan. Perbaiki izin upload foto lalu coba lagi.');
           return;
         }
       }
